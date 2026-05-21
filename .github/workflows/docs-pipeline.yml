@@ -1,0 +1,24 @@
+name: Generar Documentación con IA
+
+on:
+  push:
+    branches: [docs]
+
+jobs:
+  documentar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Ejecutar agente documentador
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/jadevx/parcial-arq-nub/main/document.sh | bash -s -- "$KIRO_API_KEY"
+        env:
+          KIRO_API_KEY: ${{ secrets.KIRO_API_KEY }}
+
+      - name: Subir PDF como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentacion
+          path: docs/documentation.pdf
