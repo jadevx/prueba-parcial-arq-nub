@@ -12,10 +12,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Ejecutar agente documentador
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/jadevx/parcial-arq-nub/main/document.sh | bash -s -- "$KIRO_API_KEY"
         env:
           KIRO_API_KEY: ${{ secrets.KIRO_API_KEY }}
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/jadevx/parcial-arq-nub/main/document.sh | bash -s -- "$KIRO_API_KEY" "docs/documentation.pdf"
 
       - name: Subir PDF como artefacto
         uses: actions/upload-artifact@v4
