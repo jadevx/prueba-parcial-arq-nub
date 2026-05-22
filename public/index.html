@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Manager</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:#f5f5f5;padding:2rem}
+    h1{margin-bottom:1rem;color:#333}
+    .container{max-width:800px;margin:0 auto}
+    .card{background:#fff;border-radius:8px;padding:1.5rem;margin-bottom:1rem;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+    .form-row{display:flex;gap:.5rem;margin-bottom:1rem}
+    input,select{padding:.5rem;border:1px solid #ddd;border-radius:4px;font-size:.9rem}
+    input[type="text"]{flex:1}
+    button{padding:.5rem 1rem;border:none;border-radius:4px;cursor:pointer;font-size:.9rem}
+    .btn-add{background:#333;color:#fff}
+    .btn-delete{background:#c00;color:#fff;font-size:.8rem;padding:.3rem .6rem}
+    .btn-status{background:#555;color:#fff;font-size:.8rem;padding:.3rem .6rem}
+    table{width:100%;border-collapse:collapse;margin-top:1rem}
+    th{background:#333;color:#fff;padding:.6rem;text-align:left}
+    td{padding:.5rem .6rem;border-bottom:1px solid #eee}
+    .badge{display:inline-block;padding:.2rem .5rem;border-radius:3px;font-size:.75rem;font-weight:600}
+    .badge-pending{background:#fff3cd;color:#856404}
+    .badge-in_progress{background:#cce5ff;color:#004085}
+    .badge-done{background:#d4edda;color:#155724}
+    .stats{display:flex;gap:1rem;margin-bottom:1rem}
+    .stat{background:#fff;padding:1rem;border-radius:8px;text-align:center;flex:1;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+    .stat-num{font-size:2rem;font-weight:700;color:#333}
+    .stat-label{font-size:.8rem;color:#666}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📋 Task Manager</h1>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="card">
+      <h3>Nueva tarea</h3>
+      <div class="form-row">
+        <input type="text" id="title" placeholder="Título de la tarea">
+        <select id="priority">
+          <option value="low">Baja</option>
+          <option value="medium" selected>Media</option>
+          <option value="high">Alta</option>
+        </select>
+        <button class="btn-add" onclick="addTask()">Agregar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Tareas</h3>
+      <div class="form-row">
+        <select id="filter-status" onchange="loadTasks()">
+          <option value="">Todos los estados</option>
+          <option value="pending">Pendiente</option>
+          <option value="in_progress">En progreso</option>
+          <option value="done">Completada</option>
+        </select>
+      </div>
+      <table>
+        <thead><tr><th>ID</th><th>Título</th><th>Estado</th><th>Prioridad</th><th>Acciones</th></tr></thead>
+        <tbody id="tasks"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api';
+
+    async function loadStats() {
+      const res = await fetch(API + '/stats');
+      const data = await res.json();
+      const byStatus = {};
+      (data.by_status || []).forEach(s => byStatus[s.status] = s.count);
+      document.getElementById('stats').innerHTML = `
+        <div class="stat"><div class="stat-num">${data.total}</div><div class="stat-label">Total</div></div>
+        <div class="stat"><div class="stat-num">${byStatus.pending||0}</div><div class="stat-label">Pendientes</div></div>
+        <div class="stat"><div class="stat-num">${byStatus.in_progress||0}</div><div class="stat-label">En progreso</div></div>
+        <div class="stat"><div class="stat-num">${byStatus.done||0}</div><div class="stat-label">Completadas</div></div>
+      `;
+    }
+
+    async function loadTasks() {
+      const status = document.getElementById('filter-status').value;
+      const url = status ? `${API}/tasks?status=${status}` : `${API}/tasks`;
+      const res = await fetch(url);
+      const tasks = await res.json();
+      document.getElementById('tasks').innerHTML = tasks.map(t => `
+        <tr>
+          <td>${t.id}</td>
+          <td>${t.title}</td>
+          <td><span class="badge badge-${t.status}">${t.status}</span></td>
+          <td>${t.priority}</td>
+          <td>
+            <button class="btn-status" onclick="nextStatus(${t.id},'${t.status}')">▶</button>
+            <button class="btn-delete" onclick="deleteTask(${t.id})">✕</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function addTask() {
+      const title = document.getElementById('title').value.trim();
+      if (!title) return;
+      const priority = document.getElementById('priority').value;
+      await fetch(API + '/tasks', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ title, priority })
+      });
+      document.getElementById('title').value = '';
+      loadTasks(); loadStats();
+    }
+
+    async function nextStatus(id, current) {
+      const next = current === 'pending' ? 'in_progress' : 'done';
+      await fetch(`${API}/tasks/${id}`, {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ status: next })
+      });
+      loadTasks(); loadStats();
+    }
+
+    async function deleteTask(id) {
+      await fetch(`${API}/tasks/${id}`, { method: 'DELETE' });
+      loadTasks(); loadStats();
+    }
+
+    loadTasks(); loadStats();
+  </script>
+</body>
+</html>
